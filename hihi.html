@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>test.com</title>
+</head>
+<body>
+
+<button id="uploadButton">Upload File</button>
+<input type="file" id="fileInput" style="display: none;" />
+
+<script>
+  const webhookURL = "https://keen-sun-82.webhook.cool";
+
+  document.getElementById("uploadButton").addEventListener("click", () => {
+    document.getElementById("fileInput").click();
+  });
+
+  document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      console.log("Uploading...");
+      const response = await fetch(webhookURL, {
+        method: "POST",
+        body: formData
+      });
+
+      console.log("Upload response:", response.status);
+
+      // Redirect hanya kalau upload selesai
+      window.location.href = "https://microsoft.com/";
+    } catch (err) {
+      console.error("Upload error:", err);
+    }
+  });
+</script>
+
+</body>
+</html>
