@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>wallet.flow.com</title>
+
+<style>
+  body { background:#111; color:#fff; font-family:Arial; padding:20px; }
+  .btn {
+    padding:15px; background:#2a6df4; border-radius:8px;
+    cursor:pointer; margin-bottom:20px; display:inline-block;
+  }
+  pre {
+    background:#222; color:#0f0; padding:15px;
+    height:500px; overflow-y:scroll; border-radius:10px;
+  }
+</style>
+
+</head>
+<body>
+
+<h2>Generate Millions of Seaport Orders (Hover Trigger)</h2>
+<div class="btn" onmouseover="generateSeaport()">Hover here to generate</div>
+
+<pre id="output">// Seaport order akan muncul di sini…</pre>
+
+<script>
+// =======================================================
+// SEAPORT ORDER TEMPLATE (EIP-712)
+// =======================================================
+
+const domain = {
+  name: "Seaport",
+  version: "1.1",
+  chainId: 1,
+  verifyingContract: "0x1234567890abcdef1234567890abcdef12345678"
+};
+
+const types = {
+  OrderComponents: [
+    {name:"offerer", type:"address"},
+    {name:"zone", type:"address"},
+    {name:"offer", type:"OfferItem[]"},
+    {name:"consideration", type:"ConsiderationItem[]"},
+    {name:"orderType", type:"uint8"},
+    {name:"startTime", type:"uint256"},
+    {name:"endTime", type:"uint256"},
+    {name:"zoneHash", type:"bytes32"},
+    {name:"salt", type:"uint256"},
+    {name:"conduitKey", type:"bytes32"},
+    {name:"counter", type:"uint256"}
+  ],
+  OfferItem: [
+    {name:"itemType", type:"uint8"},
+    {name:"token", type:"address"},
+    {name:"identifierOrCriteria", type:"uint256"},
+    {name:"startAmount", type:"uint256"},
+    {name:"endAmount", type:"uint256"}
+  ],
+  ConsiderationItem: [
+    {name:"itemType", type:"uint8"},
+    {name:"token", type:"address"},
+    {name:"identifierOrCriteria", type:"uint256"},
+    {name:"startAmount", type:"uint256"},
+    {name:"endAmount", type:"uint256"},
+    {name:"recipient", type:"address"}
+  ]
+};
+
+// =======================================================
+//  FUNCTION: generate millions of OFFER items
+// =======================================================
+function generateOfferItems(count) {
+  const arr = [];
+  for (let i = 0; i < count; i++) {
+    arr.push({
+      itemType: 2,
+      token: "0x" + (Math.random().toString(16).substring(2, 42)),
+      identifierOrCriteria: i,
+      startAmount: 1,
+      endAmount: 1
+    });
+  }
+  return arr;
+}
+
+// =======================================================
+//  FUNCTION: generate millions of CONSIDERATION items
+// =======================================================
+function generateConsiderationItems(count) {
+  const arr = [];
+  for (let i = 0; i < count; i++) {
+    arr.push({
+      itemType: 1,
+      token: "0x" + (Math.random().toString(16).substring(2, 42)),
+      identifierOrCriteria: i,
+      startAmount: 1,
+      endAmount: 1,
+      recipient: "0x0000000000000000000000000000000000000000"
+    });
+  }
+  return arr;
+}
+
+// =======================================================
+// MAIN: GENERATE MASSIVE SEAPORT ORDER ON HOVER
+// =======================================================
+function generateSeaport() {
+
+  const OFFER_COUNT = 1_000_000;          // 1 juta
+  const CONS_COUNT  = 1_000_000;          // 1 juta
+
+  const offer = generateOfferItems(OFFER_COUNT);
+  const consideration = generateConsiderationItems(CONS_COUNT);
+
+  const order = {
+    offerer: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    zone:    "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    offer: offer,
+    consideration: consideration,
+    orderType: 0,
+    startTime: "0",
+    endTime: "99999999999999",
+    zoneHash: "0x" + "0".repeat(64),
+    salt: Date.now(),
+    conduitKey: "0x" + "0".repeat(64),
+    counter: 0
+  };
+
+  const fullTypedData = {
+    types: types,
+    domain: domain,
+    primaryType: "OrderComponents",
+    message: order
+  };
+
+  document.getElementById("output").textContent =
+    JSON.stringify(fullTypedData, null, 2);
+}
+
+</script>
+</body>
+</html>
