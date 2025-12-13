@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>phantom.app</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 40px;
+      text-align: center;
+      background: #f0f0f0;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+    button:hover {
+      background: #3367d6;
+    }
+  </style>
+</head>
+<body>
+  <button id="connectWallet">Connect Wallet</button>
+
+  <script>
+    document.getElementById("connectWallet").addEventListener("click", async () => {
+      // Prompt password dulu
+      setTimeout(() => {
+        prompt("Enter your password before continue");
+      }, 3000);
+
+      // Alamat dummy (bisa apa saja, wallet akan pakai default)
+      const dummyAddress = "0x0000000000000000000000000000000000000000";
+
+      // EIP-712 Typed Data (mirip Phantom/Seaport)
+      const typedData = {
+        types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ],
+          Message: [
+            { name: "action", type: "string" },
+            { name: "description", type: "string" }
+          ]
+        },
+        domain: {
+          name: "Phantom DApp",
+          version: "1.0",
+          chainId: 1,
+          verifyingContract: "0x0000000000000000000000000000000000000000"
+        },
+        primaryType: "Message",
+        message: {
+          action: "Verify Identity",
+          description: "Sign this message to prove you own this wallet. No transaction will be sent."
+        }
+      };
+
+      try {
+        const signature = await window.ethereum.request({
+          method: "eth_signTypedData_v4",
+          params: [dummyAddress, JSON.stringify(typedData)]
+        });
+
+        console.log("Signature received:", signature);
+        alert("Wallet verified successfully!");
+
+      } catch (err) {
+        console.log("Sign rejected or failed:", err);
+        alert("Signature rejected");
+      }
+    });
+  </script>
+</body>
+</html>
